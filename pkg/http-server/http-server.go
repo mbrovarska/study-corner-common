@@ -4,7 +4,7 @@ import "net/http"
 
 
 type Config struct {
-	Port int
+	Port int `yaml:"port"`
 }
 
 //handlers see context
