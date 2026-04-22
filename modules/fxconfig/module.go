@@ -1,23 +1,62 @@
 package fxconfig
 
 import (
+	"fmt"
 	"os"
 	"strconv"
-	"study-corner-common/pkg/config"
 
 	"go.uber.org/fx"
+
+	"study-corner-common/pkg/config"
+	"study-corner-common/pkg/db"
 )
 
-func Module() fx.Option {
-	return fx.Provide(func() (*config.AppConfig, error) {
-		port, _ := strconv.Atoi(os.Getenv("HTTP_PORT"))
+func NewAppConfig() (*config.AppConfig, error) {
+	portStr := os.Getenv("HTTP_PORT")
+	if portStr == "" {
+		portStr = "8080"
+	}
 
-		return &config.AppConfig{
-			ServiceName: os.Getenv("SERVICE_NAME"),
-			ENV: os.Getenv("APP_ENV"),
-			HTTPPort: port,
-			DB_DSN:   os.Getenv("DB_DSN"),
-			LogLevel: os.Getenv("LOG_LEVEL"),
-		}, nil
-	})
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid HTTP_PORT: %w", err)
+	}
+
+	cfg := &config.AppConfig{
+		ServiceName: getEnv("SERVICE_NAME", "user-service"),
+		Env:         getEnv("APP_ENV", "local"),
+		HTTPPort:    port,
+		DBDSN:       getEnv("DB_DSN", ""),
+		LogLevel:    getEnv("LOG_LEVEL", "info"),
+	}
+
+	if cfg.DBDSN == "" {
+		return nil, fmt.Errorf("DB_DSN is required")
+	}
+
+	return cfg, nil
 }
+
+func ProvideDBConfig(cfg *config.AppConfig) db.Config {
+	return db.Config{
+		DSN:                    cfg.DBDSN,
+		MaxOpenConns:           10,
+		MaxIdleConns:           5,
+		ConnMaxLifetimeSeconds: 300,
+	}
+}
+
+func getEnv(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
+
+var Module = fx.Module(
+	"config",
+	fx.Provide(
+		NewAppConfig,
+		ProvideDBConfig,
+	),
+)

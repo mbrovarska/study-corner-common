@@ -2,25 +2,17 @@ package httpserver
 
 import "net/http"
 
+type HandlerFunc func(Context)
 
-type Config struct {
-	Port int `yaml:"port"`
-}
-
-//handlers see context
 type Context interface {
 	Request() *http.Request
 	Param(name string) string
 	Query(name string) string
 	BindJSON(target any) error
-	JSON(statusCode int, body any)
-	Status(StatusCode int)
+	JSON(code int, body any)
+	Status(code int)
 }
 
-//generic handler
-type HandlerFunc func(Context)
-
-//minimal API to register routes
 type Router interface {
 	GET(path string, h HandlerFunc)
 	POST(path string, h HandlerFunc)
@@ -28,5 +20,8 @@ type Router interface {
 	DELETE(path string, h HandlerFunc)
 }
 
-//plug routes in
-type RouterInitializer func(r Router)
+type RouteRegistrar func(r Router)
+
+type Config struct {
+	Port int
+}
